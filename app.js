@@ -21,6 +21,8 @@ const sass = require('node-sass-middleware');
 const multer = require('multer');
 
 const upload = multer({ dest: path.join(__dirname, 'uploads') });
+const mqtt = require('mqtt');
+
 
 /**
  * Load environment variables from .env file, where API keys and passwords are configured.
@@ -34,6 +36,8 @@ const homeController = require('./controllers/home');
 const userController = require('./controllers/user');
 const apiController = require('./controllers/api');
 const contactController = require('./controllers/contact');
+const deviceController = require('./controllers/device');
+
 
 /**
  * API keys and Passport configuration.
@@ -44,6 +48,11 @@ const passportConfig = require('./config/passport');
  * Create Express server.
  */
 const app = express();
+
+/**
+ * Create connection to MQTT broker.
+ */
+app.locals.client  = mqtt.connect('mqtt://ad56fb73:dd822fb858220d53@broker.shiftr.io');
 
 /**
  * Connect to MongoDB.
@@ -60,7 +69,7 @@ mongoose.connection.on('error', (err) => {
  * Express configuration.
  */
 app.set('host', process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0');
-app.set('port', process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080);
+app.set('port', process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 3000);
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 app.use(expressStatusMonitor());
@@ -86,6 +95,19 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
+
+/**
+ * Primary API routes.
+ */
+app.get('/api/devices', deviceController.getAll);
+app.post('/api/devices', deviceController.add);
+// app.get('/api/devices/:deviceId', deviceController.get);
+app.put('/api/devices/:deviceId', userController.logout);
+app.delete('/api/devices/:deviceId', deviceController.delete);
+
+/**
+ * Express configuration cont.
+ */
 app.use((req, res, next) => {
   if (req.path === '/api/upload') {
     next();
@@ -114,6 +136,10 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: 31557600000 }));
+
+
+
+
 
 /**
  * Primary app routes.
